@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './index.css';
 
 import LoginPage from './components/LoginPage';
@@ -11,6 +11,7 @@ import WarehousesPage from './components/WarehousesPage';
 import OperationsPage from './components/OperationsPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import MLInsightsPage from './components/MLInsightsPage';
+import { initializeAuth } from './services/api';
 
 function App() {
   const [authPage, setAuthPage] = useState('login');
@@ -19,15 +20,31 @@ function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
 
+  useEffect(() => {
+    initializeAuth();
+    // Check if user is already logged in
+    const savedToken = localStorage.getItem('auth_token');
+    const savedUser = localStorage.getItem('user');
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+      setAuthPage('app');
+    }
+  }, []);
+
   const handleLogin = (userData, tokenData) => {
     setUser(userData);
-    setToken(tokenData);
+    setToken(tokenData.access);
+    localStorage.setItem('user', JSON.stringify(userData));
     setAuthPage('app');
   };
 
   const handleLogout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
     setCurrentPage('dashboard');
     setAuthPage('login');
   };

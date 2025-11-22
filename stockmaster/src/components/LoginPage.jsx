@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Package, User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { authService, setAuthToken, setRefreshToken, initializeAuth } from '../services/api';
 
 const LoginPage = ({ onLogin, onNavigate }) => {
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -7,17 +8,34 @@ const LoginPage = ({ onLogin, onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!formData.username || !formData.password) {
+      setError('Please enter username and password');
+      return;
+    }
+
     setLoading(true);
     setError('');
-    setTimeout(() => {
-      if (formData.username && formData.password) {
-        onLogin({ id: 1, username: formData.username, email: 'user@example.com', first_name: 'John', last_name: 'Doe' }, { access: 'mock_token' });
+
+    try {
+      const response = await authService.login(formData);
+      if (response.success) {
+        setAuthToken(response.tokens.access);
+        setRefreshToken(response.tokens.refresh);
+        onLogin(response.user, response.tokens);
       } else {
-        setError('Please enter username and password');
+        setError(response.message || 'Login failed');
       }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err?.response?.data?.errors?.non_field_errors?.[0] || err?.message || 'Login failed');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (

@@ -1,14 +1,43 @@
 import { useState } from 'react';
-import { Package, Eye, EyeOff } from 'lucide-react';
+import { Package, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { authService } from '../services/api';
 
 const SignupPage = ({ onNavigate }) => {
   const [formData, setFormData] = useState({ username: '', email: '', password: '', password_confirm: '', first_name: '', last_name: '' });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!formData.username || !formData.email || !formData.password || !formData.password_confirm) {
+      setError('Please fill all required fields');
+      return;
+    }
+
+    if (formData.password !== formData.password_confirm) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => { setLoading(false); onNavigate('login'); }, 1500);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await authService.signup(formData);
+      if (response.success) {
+        setSuccess('Account created successfully! Please login.');
+        setTimeout(() => onNavigate('login'), 2000);
+      } else {
+        setError(response.message || 'Signup failed');
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
+      setError(err?.response?.data?.errors?.username?.[0] || err?.response?.data?.errors?.email?.[0] || err?.message || 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,6 +55,19 @@ const SignupPage = ({ onNavigate }) => {
             <h1 className="text-2xl font-bold text-white mb-1">Create Account</h1>
             <p className="text-gray-400 text-sm">Join StockMaster today</p>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400" />
+              <span className="text-red-300 text-sm">{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-xl flex items-center gap-2">
+              <span className="text-green-300 text-sm">{success}</span>
+            </div>
+          )}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" placeholder="First name" />

@@ -2,7 +2,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from warehouse.models import Stock
+from warehouse.models import Stock, Warehouse
 from product.models import Product
 from operations.models import Receipt, Delivery, InternalTransfer
 from django.db.models import Sum, Q, Count
@@ -15,6 +15,8 @@ class DashboardKPIsView(APIView):
 	def get(self, request):
 		# Total products in stock
 		total_products_in_stock = Stock.objects.aggregate(total=Sum('quantity'))['total'] or 0
+		# Total warehouses
+		total_warehouses = Warehouse.objects.count()
 		# Low stock / Out of stock items
 		low_stock_threshold = float(request.query_params.get('low_stock_threshold', 10))
 		low_stock = (
@@ -37,6 +39,7 @@ class DashboardKPIsView(APIView):
 			'success': True,
 			'kpis': {
 				'total_products_in_stock': total_products_in_stock,
+				'total_warehouses': total_warehouses,
 				'low_stock_items': len(low_stock),
 				'out_of_stock_items': len(out_of_stock),
 				'pending_receipts': pending_receipts,
