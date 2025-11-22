@@ -3,6 +3,8 @@ import logging
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Product
 from .serializers import ProductListSerializer, ProductDetailSerializer
 from warehouse.models import Stock, SubLocation
@@ -57,6 +59,11 @@ logger = logging.getLogger(__name__)
 class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['category', 'unit']
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':

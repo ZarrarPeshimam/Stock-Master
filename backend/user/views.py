@@ -9,6 +9,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from .serializers import UserSignupSerializer, UserLoginSerializer, UserSerializer
+from .models import OTP
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -248,6 +249,120 @@ class LogoutView(APIView):
             'success': True,
             'message': 'Logout successful'
         }, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordView(APIView):
+    """
+    Request OTP for password reset
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({
+                'success': False,
+                'error': 'Email is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Don't reveal if email exists for security
+            return Response({
+                'success': True,
+                'message': 'If the email exists, an OTP has been sent'
+            })
+
+        # Generate and send OTP
+        otp_obj, created = OTP.objects.get_or_create(
+            user=user,
+            is_used=False,
+            defaults={'user': user}
+        )
+        if not created:
+            otp_obj.is_used = False  # Reset if reusing
+        otp_code = otp_obj.generate_otp()
+
+        # Send email (placeholder - implement actual email sending)
+        try:
+            send_mail(
+                'Password Reset OTP',
+                f'Your OTP for password reset is: {otp_code}. Valid for 10 minutes.',
+                settings.EMAIL_HOST_USER,
+                [email],
+                fail_silently=False,
+            )
+            logger.info(f"OTP sent to {email} for user {user.username}")
+        except Exception as e:
+            logger.error(f"Failed to send OTP email to {email}: {str(e)}")
+            return Response({
+                'success': False,
+                'error': 'Failed to send email'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({
+            'success': True,
+            'message': 'OTP sent to your email'
+        })
+
+
+class ResetPasswordView(APIView):
+    """
+    Verify OTP and reset password
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        otp_code = request.data.get('otp')
+        new_password = request.data.get('new_password')
+
+        if not all([email, otp_code, new_password]):
+            return Response({
+                'success': False,
+                'error': 'Email, OTP, and new password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Invalid email'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            otp_obj = OTP.objects.get(
+                user=user,
+                otp_code=otp_code,
+                is_used=False
+            )
+        except OTP.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Invalid OTP'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not otp_obj.is_valid():
+            return Response({
+                'success': False,
+                'error': 'OTP has expired'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Reset password
+        user.set_password(new_password)
+        user.save()
+
+        # Mark OTP as used
+        otp_obj.is_used = True
+        otp_obj.save()
+
+        logger.info(f"Password reset successful for user {user.username}")
+        return Response({
+            'success': True,
+            'message': 'Password reset successfully'
+        })
 
 
 class TokenRefreshViewCustom(TokenRefreshView):

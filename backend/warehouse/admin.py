@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Warehouse, SubLocation
+from .models import Warehouse, SubLocation, Stock
 
 
 @admin.register(Warehouse)
@@ -38,6 +38,23 @@ class SubLocationAdmin(admin.ModelAdmin):
         }),
         ('Timestamps', {
             'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Stock)
+class StockAdmin(admin.ModelAdmin):
+    list_display = ('product', 'sublocation', 'quantity', 'updated_at')
+    list_filter = ('sublocation__warehouse', 'updated_at')
+    search_fields = ('product__name', 'sublocation__code')
+    readonly_fields = ('updated_at',)
+    fieldsets = (
+        ('Stock Information', {
+            'fields': ('product', 'sublocation', 'quantity')
+        }),
+        ('Timestamps', {
+            'fields': ('updated_at',),
             'classes': ('collapse',)
         }),
     )

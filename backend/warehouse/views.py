@@ -3,6 +3,8 @@ from django.forms import ValidationError
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Stock, Warehouse, SubLocation
 from .serializers import StockDetailSerializer, StockListSerializer, WarehouseSerializer, SubLocationSerializer
 
@@ -23,6 +25,11 @@ class WarehouseListView(generics.ListCreateAPIView):
     queryset = Warehouse.objects.all().order_by('name')
     serializer_class = WarehouseSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['location']
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
 
     def get(self, request):
         """List all warehouses"""
@@ -201,6 +208,11 @@ class SubLocationListView(generics.ListCreateAPIView):
     queryset = SubLocation.objects.all()
     serializer_class = SubLocationSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['warehouse']
+    search_fields = ['code']
+    ordering_fields = ['code', 'created_at']
+    ordering = ['code']
 
     def get(self, request):
         """List all sub-locations"""
@@ -410,6 +422,11 @@ class SubLocationByWarehouseView(generics.ListAPIView):
 class StockListView(generics.ListAPIView):
     serializer_class = StockListSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['product', 'sublocation']
+    search_fields = ['product__name']
+    ordering_fields = ['quantity', 'updated_at']
+    ordering = ['-updated_at']
 
     def get_queryset(self):
         warehouse_id = self.request.query_params.get('warehouse')
