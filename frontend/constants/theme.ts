@@ -1,53 +1,71 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+export const LightTheme = {
+  mode: "light",
 
-import { Platform } from 'react-native';
+  primary: "#059669",
+  primaryDark: "#047857",
+  primaryLight: "#A7F3D0",
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+  background: "#F9FAFB",
+  card: "#FFFFFF",
+  border: "#E5E7EB",
 
-export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+  textDark: "#111827",
+  textBody: "#4B5563",
+  textLight: "#9CA3AF",
+
+  success: "#10B981",
+  warning: "#FACC15",
+  danger: "#DC2626",
+
+  radius: 12,
+  shadow: {
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+  spacing: [4, 8, 12, 16, 20, 24],
+
+  typography: {
+    h1: { fontSize: 28, fontWeight: "700", color: "#111827" },
+    h2: { fontSize: 22, fontWeight: "600", color: "#111827" },
+    body: { fontSize: 16, color: "#4B5563" },
+    label: { fontSize: 13, color: "#9CA3AF" },
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const DarkTheme = {
+  mode: "dark",
+
+  primary: "#34D399",
+  primaryDark: "#064E3B",
+  primaryLight: "#10B981",
+
+  background: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+
+  textDark: "#F1F5F9",
+  textBody: "#CBD5E1",
+  textLight: "#64748B",
+
+  success: "#22C55E",
+  warning: "#EAB308",
+  danger: "#EF4444",
+
+  radius: 12,
+  shadow: {
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+  spacing: [4, 8, 12, 16, 20, 24],
+
+  typography: {
+    h1: { fontSize: 28, fontWeight: "700", color: "#F1F5F9" },
+    h2: { fontSize: 22, fontWeight: "600", color: "#F1F5F9" },
+    body: { fontSize: 16, color: "#CBD5E1" },
+    label: { fontSize: 13, color: "#64748B" },
   },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+};
