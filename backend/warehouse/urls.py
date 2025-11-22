@@ -1,18 +1,18 @@
 from django.urls import path
 from .views import (
-    WarehouseCreateView, WarehouseListView, WarehouseDetailView,
-    SubLocationCreateView, SubLocationListView, SubLocationByWarehouseView
+    WarehouseListView, WarehouseDetailView,
+    SubLocationListView, SubLocationDetailView, SubLocationByWarehouseView
 )
+
+app_name = 'warehouse'
 
 urlpatterns = [
     # Warehouse APIs
-    path('warehouse/create/', WarehouseCreateView.as_view(), name='warehouse-create'),
-    path('warehouse/', WarehouseListView.as_view(), name='warehouse-list'),
-    path('warehouse/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse-detail'),
+    path('warehouses/', WarehouseListView.as_view(), name='warehouse-list-create'),
+    path('warehouses/<int:pk>/', WarehouseDetailView.as_view(), name='warehouse-detail-update-delete'),
 
     # SubLocation APIs
-    path('sublocation/create/', SubLocationCreateView.as_view(), name='sublocation-create'),
-    path('sublocation/', SubLocationListView.as_view(), name='sublocation-list'),
-    path('sublocation/warehouse/<int:warehouse_id>/', SubLocationByWarehouseView.as_view(),
-         name='sublocation-by-warehouse'),
+    path('sublocations/', SubLocationListView.as_view(), name='sublocation-list-create'),
+    path('sublocations/<int:pk>/', SubLocationDetailView.as_view(), name='sublocation-detail-update-delete'),
+    path('sublocations/warehouse/<int:warehouse_id>/', SubLocationByWarehouseView.as_view(), name='sublocation-by-warehouse'),
 ]
