@@ -2,12 +2,15 @@ from django.shortcuts import render
 
 # Create your views here.
 import math
+import logging
 from warehouse.models import Warehouse, Stock
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
-from warehouse.models import Warehouse, Stock
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 def find_nearest_abundant_stock(source_warehouse_id, product_id, abundance_min=6):
     """
@@ -70,20 +73,37 @@ class NearestAbundantStockAPIView(APIView):
     """
     API to find the nearest warehouse with abundant stock for a given product.
     """
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         warehouse_id = request.query_params.get("warehouse_id")
         product_id = request.query_params.get("product_id")
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+
+        logger.info(f"[NEAREST_STOCK] GET request - User: {user.username}, Warehouse: {warehouse_id}, Product: {product_id}, IP: {ip_address}")
 
         if not warehouse_id or not product_id:
-            return Response({"error": "warehouse_id and product_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(f"[NEAREST_STOCK] FAILED - Missing parameters, User: {user.username}")
+            return Response({
+                'success': False,
+                'error': "warehouse_id and product_id are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         result = find_nearest_abundant_stock(warehouse_id, product_id)
 
         if not result:
-            return Response({"message": "No abundant stock found in other warehouses"}, status=status.HTTP_404_NOT_FOUND)
+            logger.info(f"[NEAREST_STOCK] SUCCESS - No abundant stock found, User: {user.username}")
+            return Response({
+                'success': True,
+                'message': "No abundant stock found in other warehouses"
+            }, status=status.HTTP_200_OK)
 
-        return Response(result)
+        logger.info(f"[NEAREST_STOCK] SUCCESS - Found stock, User: {user.username}, Result: {result}")
+        return Response({
+            'success': True,
+            'data': result
+        })
     
     
     
@@ -171,20 +191,34 @@ from .ml_services import demand_model, susp_model, reco_model
 #   Demand Prediction View
 # -------------------------------------------
 class DemandPredictionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         warehouse_id = request.query_params.get("warehouse_id")
         product_id = request.query_params.get("product_id")
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+
+        logger.info(f"[DEMAND_PREDICTION] GET request - User: {user.username}, Warehouse: {warehouse_id}, Product: {product_id}, IP: {ip_address}")
 
         if not warehouse_id or not product_id:
-            return Response({"error": "warehouse_id and product_id required"}, status=400)
+            logger.warning(f"[DEMAND_PREDICTION] FAILED - Missing parameters, User: {user.username}")
+            return Response({
+                'success': False,
+                'error': "warehouse_id and product_id required"
+            }, status=400)
 
         predicted_demand = demand_model.predict(warehouse_id, product_id)
 
+        logger.info(f"[DEMAND_PREDICTION] SUCCESS - User: {user.username}, Predicted: {predicted_demand}")
         return Response({
-            "warehouse_id": warehouse_id,
-            "product_id": product_id,
-            "predicted_demand_score": predicted_demand,
-            "model_used": demand_model.name
+            'success': True,
+            'data': {
+                "warehouse_id": warehouse_id,
+                "product_id": product_id,
+                "predicted_demand_score": predicted_demand,
+                "model_used": demand_model.name
+            }
         })
         
 
@@ -192,20 +226,34 @@ class DemandPredictionAPIView(APIView):
 #   Suspicious Activity Detection View
 # -------------------------------------------
 class SuspiciousActivityAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         transfer_amount = request.data.get("transfer_amount")
         user_id = request.data.get("user_id")
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+
+        logger.info(f"[SUSPICIOUS_ACTIVITY] POST request - User: {user.username}, Transfer: {transfer_amount}, Target User: {user_id}, IP: {ip_address}")
 
         if transfer_amount is None or user_id is None:
-            return Response({"error": "transfer_amount and user_id required"}, status=400)
+            logger.warning(f"[SUSPICIOUS_ACTIVITY] FAILED - Missing parameters, User: {user.username}")
+            return Response({
+                'success': False,
+                'error': "transfer_amount and user_id required"
+            }, status=400)
 
         result = susp_model.predict(int(transfer_amount), int(user_id))
 
+        logger.info(f"[SUSPICIOUS_ACTIVITY] SUCCESS - User: {user.username}, Result: {result}")
         return Response({
-            "user_id": user_id,
-            "transfer_amount": transfer_amount,
-            "is_suspicious": result,
-            "model_used": susp_model.name
+            'success': True,
+            'data': {
+                "user_id": user_id,
+                "transfer_amount": transfer_amount,
+                "is_suspicious": result,
+                "model_used": susp_model.name
+            }
         })
 
 
@@ -213,18 +261,32 @@ class SuspiciousActivityAPIView(APIView):
 #   Product Recommendation View
 # -------------------------------------------
 class ProductRecommendationAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         user_id = request.query_params.get("user_id")
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+
+        logger.info(f"[PRODUCT_RECOMMENDATION] GET request - User: {user.username}, Target User: {user_id}, IP: {ip_address}")
 
         if not user_id:
-            return Response({"error": "user_id required"}, status=400)
+            logger.warning(f"[PRODUCT_RECOMMENDATION] FAILED - Missing user_id, User: {user.username}")
+            return Response({
+                'success': False,
+                'error': "user_id required"
+            }, status=400)
 
         recommendations = reco_model.recommend(int(user_id))
 
+        logger.info(f"[PRODUCT_RECOMMENDATION] SUCCESS - User: {user.username}, Recommendations: {recommendations}")
         return Response({
-            "user_id": user_id,
-            "recommended_products": recommendations,
-            "model_used": reco_model.name
+            'success': True,
+            'data': {
+                "user_id": user_id,
+                "recommended_products": recommendations,
+                "model_used": reco_model.name
+            }
         })
 
 
@@ -249,18 +311,31 @@ class WarehouseStockPredictionCSVAPIView(APIView):
     - Current Stock Quantity
     - Predicted demand score for this year
     """
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         warehouse_id = request.query_params.get("warehouse_id")
         product_ids = request.query_params.getlist("product_ids")  # ?product_ids=1&product_ids=2
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+
+        logger.info(f"[WAREHOUSE_CSV] GET request - User: {user.username}, Warehouse: {warehouse_id}, Products: {product_ids}, IP: {ip_address}")
 
         if not warehouse_id:
-            return Response({"error": "warehouse_id is required"}, status=400)
+            logger.warning(f"[WAREHOUSE_CSV] FAILED - Missing warehouse_id, User: {user.username}")
+            return Response({
+                'success': False,
+                'error': "warehouse_id is required"
+            }, status=400)
 
         try:
             warehouse = Warehouse.objects.get(id=warehouse_id)
         except Warehouse.DoesNotExist:
-            return Response({"error": "Warehouse not found"}, status=404)
+            logger.warning(f"[WAREHOUSE_CSV] FAILED - Warehouse not found: {warehouse_id}, User: {user.username}")
+            return Response({
+                'success': False,
+                'error': "Warehouse not found"
+            }, status=404)
 
         # Get stocks for this warehouse
         stocks = Stock.objects.filter(
@@ -269,7 +344,11 @@ class WarehouseStockPredictionCSVAPIView(APIView):
         ).select_related("product", "sublocation")
 
         if not stocks.exists():
-            return Response({"error": "No stock found for the given warehouse/products"}, status=404)
+            logger.info(f"[WAREHOUSE_CSV] SUCCESS - No stock found, User: {user.username}")
+            return Response({
+                'success': True,
+                'message': "No stock found for the given warehouse/products"
+            }, status=200)
 
         # Create CSV response
         response = HttpResponse(content_type='text/csv')
@@ -295,4 +374,5 @@ class WarehouseStockPredictionCSVAPIView(APIView):
                 predicted_demand
             ])
 
+        logger.info(f"[WAREHOUSE_CSV] SUCCESS - CSV generated, User: {user.username}, Records: {stocks.count()}")
         return response
