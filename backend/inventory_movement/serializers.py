@@ -1,36 +1,43 @@
+# transfers/serializers.py
 from rest_framework import serializers
-from .models import Transfer
+from .models import StockTransfer
+from warehouse.models import Stock
 
 
 # ---------------------------------------------------------
-# 1. LIST SERIALIZER  (Minimal fields for list view)
+# 1. LIST SERIALIZER (Minimal fields for list view)
 # ---------------------------------------------------------
-class TransferListSerializer(serializers.ModelSerializer):
+class StockTransferListSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_sku = serializers.CharField(source="product.sku", read_only=True)
 
+    source_sublocation = serializers.CharField(source="source_stock.sublocation.code", read_only=True)
+    destination_sublocation = serializers.CharField(source="destination_stock.sublocation.code", read_only=True)
+
     class Meta:
-        model = Transfer
+        model = StockTransfer
         fields = [
             "id",
             "transfer_type",
             "product_name",
             "product_sku",
             "quantity",
+            "source_sublocation",
+            "destination_sublocation",
             "created_at",
         ]
 
 
 # ---------------------------------------------------------
-# 2. DETAIL SERIALIZER  (Full details for single transfer)
+# 2. DETAIL SERIALIZER (Full details for single transfer)
 # ---------------------------------------------------------
-class TransferDetailSerializer(serializers.ModelSerializer):
+class StockTransferDetailSerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
     source = serializers.SerializerMethodField()
     destination = serializers.SerializerMethodField()
 
     class Meta:
-        model = Transfer
+        model = StockTransfer
         fields = "__all__"
 
     def get_product(self, obj):
@@ -44,22 +51,26 @@ class TransferDetailSerializer(serializers.ModelSerializer):
         }
 
     def get_source(self, obj):
-        return {
-            "warehouse": obj.source_warehouse.name if obj.source_warehouse else None,
-            "sublocation": obj.source_sublocation.code if obj.source_sublocation else None,
-        }
+        if obj.source_stock:
+            return {
+                "warehouse": obj.source_stock.sublocation.warehouse.name,
+                "sublocation": obj.source_stock.sublocation.code,
+            }
+        return None
 
     def get_destination(self, obj):
-        return {
-            "warehouse": obj.destination_warehouse.name if obj.destination_warehouse else None,
-            "sublocation": obj.destination_sublocation.code if obj.destination_sublocation else None,
-        }
+        if obj.destination_stock:
+            return {
+                "warehouse": obj.destination_stock.sublocation.warehouse.name,
+                "sublocation": obj.destination_stock.sublocation.code,
+            }
+        return None
 
 
 # ---------------------------------------------------------
-# 3. CREATE SERIALIZER  (Used for POST requests)
+# 3. CREATE SERIALIZER (Used for POST requests)
 # ---------------------------------------------------------
-class TransferCreateSerializer(serializers.Serializer):
+class StockTransferCreateSerializer(serializers.Serializer):
     stock_id = serializers.IntegerField()
     transfer_type = serializers.ChoiceField(choices=[
         ('WAREHOUSE_TO_WAREHOUSE', 'Warehouse → Warehouse'),
@@ -67,11 +78,8 @@ class TransferCreateSerializer(serializers.Serializer):
         ('WAREHOUSE_TO_PRODUCTION', 'Warehouse → Production'),
         ('WAREHOUSE_TO_CUSTOMER', 'Warehouse → Customer'),
     ])
-
     quantity = serializers.FloatField()
-
-    # Only required for warehouse-to-warehouse transfers
-    destination_sublocation = serializers.IntegerField(required=False)
+    destination_stock_id = serializers.IntegerField(required=False)
 
     # Uploadable images
     bill_image = serializers.ImageField(required=False, allow_null=True)
@@ -79,3 +87,9 @@ class TransferCreateSerializer(serializers.Serializer):
 
     # Optional notes/comments
     note = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        quantity = attrs.get("quantity")
+        if quantity <= 0:
+            raise serializers.ValidationError({"quantity": "Quantity must be greater than 0"})
+        return attrs
