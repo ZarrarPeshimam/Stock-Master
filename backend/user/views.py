@@ -1,3 +1,4 @@
+import logging
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
@@ -6,6 +7,9 @@ from rest_framework.response import Response
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from .serializers import UserSignupSerializer, UserLoginSerializer, UserSerializer
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 class SignupView(GenericAPIView):
@@ -20,6 +24,10 @@ class SignupView(GenericAPIView):
     
     def get(self, request):
         """Show the signup form in browsable API"""
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        logger.info(f"[SIGNUP] GET request - Signup form accessed from IP: {ip_address}")
+        print(f"[SIGNUP] GET request - Signup form accessed from IP: {ip_address}")
+        
         serializer = self.get_serializer()
         return Response({
             'message': 'User Registration Form',
@@ -44,12 +52,22 @@ class SignupView(GenericAPIView):
     
     def post(self, request):
         """Create a new user"""
+        username = request.data.get('username', 'Unknown')
+        email = request.data.get('email', 'Unknown')
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        
+        logger.info(f"[SIGNUP] POST request - Attempting to create user: {username}, Email: {email}, IP: {ip_address}")
+        print(f"[SIGNUP] POST request - Attempting to create user: {username}, Email: {email}, IP: {ip_address}")
+        
         serializer = self.get_serializer(data=request.data)
         
         if serializer.is_valid():
             user = serializer.save()
             # Automatically log in the user after signup
             login(request, user)
+            
+            logger.info(f"[SIGNUP] SUCCESS - User created and logged in: {user.username} (ID: {user.id}), Email: {user.email}")
+            print(f"[SIGNUP] SUCCESS - User created and logged in: {user.username} (ID: {user.id}), Email: {user.email}")
             
             # Return user data
             user_serializer = UserSerializer(user)
@@ -58,6 +76,9 @@ class SignupView(GenericAPIView):
                 'message': 'User created successfully',
                 'user': user_serializer.data
             }, status=status.HTTP_201_CREATED)
+        
+        logger.warning(f"[SIGNUP] FAILED - Validation errors for username: {username}, Errors: {serializer.errors}")
+        print(f"[SIGNUP] FAILED - Validation errors for username: {username}, Errors: {serializer.errors}")
         
         return Response({
             'success': False,
@@ -81,6 +102,10 @@ class LoginView(GenericAPIView):
     
     def get(self, request):
         """Show the login form in browsable API"""
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        logger.info(f"[LOGIN] GET request - Login form accessed from IP: {ip_address}")
+        print(f"[LOGIN] GET request - Login form accessed from IP: {ip_address}")
+        
         serializer = self.get_serializer()
         return Response({
             'message': 'User Login Form',
@@ -97,11 +122,20 @@ class LoginView(GenericAPIView):
     
     def post(self, request):
         """Authenticate and log in user"""
+        username = request.data.get('username', 'Unknown')
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        
+        logger.info(f"[LOGIN] POST request - Login attempt for username: {username}, IP: {ip_address}")
+        print(f"[LOGIN] POST request - Login attempt for username: {username}, IP: {ip_address}")
+        
         serializer = self.get_serializer(data=request.data)
         
         if serializer.is_valid():
             user = serializer.validated_data['user']
             login(request, user)
+            
+            logger.info(f"[LOGIN] SUCCESS - User logged in: {user.username} (ID: {user.id}), Email: {user.email}")
+            print(f"[LOGIN] SUCCESS - User logged in: {user.username} (ID: {user.id}), Email: {user.email}")
             
             # Return user data
             user_serializer = UserSerializer(user)
@@ -110,6 +144,9 @@ class LoginView(GenericAPIView):
                 'message': 'Login successful',
                 'user': user_serializer.data
             }, status=status.HTTP_200_OK)
+        
+        logger.warning(f"[LOGIN] FAILED - Invalid credentials for username: {username}, IP: {ip_address}")
+        print(f"[LOGIN] FAILED - Invalid credentials for username: {username}, IP: {ip_address}")
         
         return Response({
             'success': False,
@@ -126,7 +163,13 @@ class ProfileView(APIView):
     
     def get(self, request):
         """Get authenticated user's profile"""
-        serializer = UserSerializer(request.user)
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        
+        logger.info(f"[PROFILE] GET request - Profile accessed by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        print(f"[PROFILE] GET request - Profile accessed by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        
+        serializer = UserSerializer(user)
         return Response({
             'success': True,
             'user': serializer.data
@@ -136,20 +179,41 @@ class ProfileView(APIView):
 class LogoutView(APIView):
     """
     User logout endpoint
+    Works with both GET and POST requests - directly logs out the user
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Show logout information"""
+        """Log out the current user (GET request)"""
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        
+        logger.info(f"[LOGOUT] GET request - User logout: {user.username} (ID: {user.id}), IP: {ip_address}")
+        print(f"[LOGOUT] GET request - User logout: {user.username} (ID: {user.id}), IP: {ip_address}")
+        
+        logout(request)
+        
+        logger.info(f"[LOGOUT] SUCCESS - User logged out: {user.username} (ID: {user.id})")
+        print(f"[LOGOUT] SUCCESS - User logged out: {user.username} (ID: {user.id})")
+        
         return Response({
-            'message': 'Logout endpoint',
-            'description': 'Click the POST button below to logout',
-            'note': 'You must be logged in to logout'
-        })
+            'success': True,
+            'message': 'Logout successful'
+        }, status=status.HTTP_200_OK)
     
     def post(self, request):
-        """Log out the current user"""
+        """Log out the current user (POST request)"""
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        
+        logger.info(f"[LOGOUT] POST request - User logout: {user.username} (ID: {user.id}), IP: {ip_address}")
+        print(f"[LOGOUT] POST request - User logout: {user.username} (ID: {user.id}), IP: {ip_address}")
+        
         logout(request)
+        
+        logger.info(f"[LOGOUT] SUCCESS - User logged out: {user.username} (ID: {user.id})")
+        print(f"[LOGOUT] SUCCESS - User logged out: {user.username} (ID: {user.id})")
+        
         return Response({
             'success': True,
             'message': 'Logout successful'
