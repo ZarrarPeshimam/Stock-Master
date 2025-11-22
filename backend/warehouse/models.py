@@ -80,3 +80,32 @@ class SubLocation(models.Model):
 
     def __str__(self):
         return f"{self.code} ({self.warehouse.name})"
+
+
+
+
+class Stock(models.Model):
+    product = models.ForeignKey(
+        'products.Product',
+        on_delete=models.CASCADE,
+        related_name="stock_items"
+    )
+
+    sublocation = models.ForeignKey(
+        SubLocation,
+        on_delete=models.CASCADE,
+        related_name="stock_items"
+    )
+
+    quantity = models.FloatField(default=0)
+
+    # Optional but VERY useful for tracking warehouse ops
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('product', 'sublocation')
+        verbose_name = "Stock Record"
+        verbose_name_plural = "Stock Records"
+
+    def __str__(self):
+        return f"{self.product.sku} @ {self.sublocation.code} = {self.quantity}"
