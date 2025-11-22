@@ -1,27 +1,77 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Warehouse } from 'lucide-react';
+import { warehouseService } from '../services/api';
 
 const WarehousesPage = () => {
-  const [warehouses, setWarehouses] = useState([
-    { id: 1, name: 'Main Warehouse', code: 'WH-001', city: 'New York', state: 'NY', capacity: 10000, used: 6500, is_active: true },
-    { id: 2, name: 'West Coast Hub', code: 'WH-002', city: 'Los Angeles', state: 'CA', capacity: 8000, used: 4200, is_active: true },
-    { id: 3, name: 'Central Distribution', code: 'WH-003', city: 'Chicago', state: 'IL', capacity: 12000, used: 9800, is_active: true },
-    { id: 4, name: 'Southern Facility', code: 'WH-004', city: 'Houston', state: 'TX', capacity: 6000, used: 2100, is_active: false },
-  ]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editWh, setEditWh] = useState(null);
   const [formData, setFormData] = useState({ name: '', code: '', address: '', city: '', state: '', country: 'USA', pincode: '', capacity_value: '', capacity_unit: 'sqft' });
 
-  const openAdd = () => { setEditWh(null); setFormData({ name: '', code: '', address: '', city: '', state: '', country: 'USA', pincode: '', capacity_value: '', capacity_unit: 'sqft' }); setShowModal(true); };
-  const openEdit = (w) => { setEditWh(w); setFormData({ name: w.name, code: w.code, address: w.address || '', city: w.city, state: w.state, country: 'USA', pincode: '', capacity_value: w.capacity, capacity_unit: 'sqft' }); setShowModal(true); };
-  
-  const handleSave = () => {
-    if (editWh) {
-      setWarehouses(warehouses.map(w => w.id === editWh.id ? { ...w, ...formData, capacity: parseInt(formData.capacity_value) || w.capacity } : w));
-    } else {
-      setWarehouses([...warehouses, { id: Date.now(), ...formData, capacity: parseInt(formData.capacity_value) || 0, used: 0, is_active: true }]);
+  useEffect(() => {
+    loadWarehouses();
+  }, []);
+
+  const loadWarehouses = async () => {
+    try {
+      const data = await warehouseService.getWarehouses();
+      setWarehouses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load warehouses:', error);
+      setWarehouses([]);
+    } finally {
+      setLoading(false);
     }
-    setShowModal(false);
+  };
+
+  const openAdd = () => { 
+    setEditWh(null); 
+    setFormData({ name: '', code: '', address: '', city: '', state: '', country: 'USA', pincode: '', capacity_value: '', capacity_unit: 'sqft' }); 
+    setShowModal(true); 
+  };
+  
+  const openEdit = (w) => { 
+    setEditWh(w); 
+    setFormData({ 
+      name: w.name, 
+      code: w.code, 
+      address: w.address || '', 
+      city: w.city, 
+      state: w.state, 
+      country: w.country || 'USA', 
+      pincode: w.pincode || '', 
+      capacity_value: w.capacity_value || '', 
+      capacity_unit: w.capacity_unit || 'sqft' 
+    }); 
+    setShowModal(true); 
+  };
+  
+  const handleSave = async () => {
+    try {
+      if (editWh) {
+        await warehouseService.updateWarehouse(editWh.id, formData);
+      } else {
+        await warehouseService.createWarehouse(formData);
+      }
+      setShowModal(false);
+      loadWarehouses(); // Reload data
+    } catch (error) {
+      console.error('Failed to save warehouse:', error);
+      // TODO: Show error message
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this warehouse?')) {
+      try {
+        await warehouseService.deleteWarehouse(id);
+        loadWarehouses(); // Reload data
+      } catch (error) {
+        console.error('Failed to delete warehouse:', error);
+        // TODO: Show error message
+      }
+    }
   };
 
   return (
@@ -55,19 +105,12 @@ const WarehousesPage = () => {
                 <span>📍</span> {w.city}, {w.state}
               </div>
               <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-400">Capacity Usage</span>
-                  <span className="text-white">{Math.round((w.used / w.capacity) * 100)}%</span>
-                </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${(w.used / w.capacity) > 0.8 ? 'bg-red-500' : (w.used / w.capacity) > 0.6 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${(w.used / w.capacity) * 100}%` }}></div>
-                </div>
-                <p className="text-gray-500 text-xs mt-1">{w.used.toLocaleString()} / {w.capacity.toLocaleString()} sqft</p>
+                <p className="text-gray-400 text-sm">Capacity: {w.capacity_value} {w.capacity_unit}</p>
               </div>
             </div>
             <div className="flex gap-2 mt-4 pt-4 border-t border-slate-700">
               <button onClick={() => openEdit(w)} className="flex-1 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition text-sm">Edit</button>
-              <button className="flex-1 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 transition text-sm">View Stock</button>
+              <button onClick={() => handleDelete(w.id)} className="flex-1 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition text-sm">Delete</button>
             </div>
           </div>
         ))}

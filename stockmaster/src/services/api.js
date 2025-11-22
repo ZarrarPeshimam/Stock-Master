@@ -118,22 +118,23 @@ export const authService = {
 export const warehouseService = {
   getWarehouses: async (params = {}) => {
     const response = await api.get('/warehouse/warehouses/', { params });
-    return response.data.data;
+    // backend returns { success: True, count: N, warehouses: [...] }
+    return response.data.warehouses || [];
   },
 
   createWarehouse: async (data) => {
     const response = await api.post('/warehouse/warehouses/', data);
-    return response.data.data;
+    return response.data.warehouse;
   },
 
   getWarehouse: async (id) => {
     const response = await api.get(`/warehouse/warehouses/${id}/`);
-    return response.data.data;
+    return response.data.warehouse;
   },
 
   updateWarehouse: async (id, data) => {
     const response = await api.put(`/warehouse/warehouses/${id}/`, data);
-    return response.data.data;
+    return response.data.warehouse;
   },
 
   deleteWarehouse: async (id) => {
@@ -142,22 +143,23 @@ export const warehouseService = {
 
   getSubLocations: async (params = {}) => {
     const response = await api.get('/warehouse/sublocations/', { params });
-    return response.data.data;
+    // backend returns { success: True, count: N, sublocations: [...] }
+    return response.data.sublocations || [];
   },
 
   createSubLocation: async (data) => {
     const response = await api.post('/warehouse/sublocations/', data);
-    return response.data.data;
+    return response.data.sublocation;
   },
 
   getSubLocation: async (id) => {
     const response = await api.get(`/warehouse/sublocations/${id}/`);
-    return response.data.data;
+    return response.data.sublocation;
   },
 
   updateSubLocation: async (id, data) => {
     const response = await api.put(`/warehouse/sublocations/${id}/`, data);
-    return response.data.data;
+    return response.data.sublocation;
   },
 
   deleteSubLocation: async (id) => {
@@ -166,7 +168,14 @@ export const warehouseService = {
 
   getStock: async (params = {}) => {
     const response = await api.get('/warehouse/stock/', { params });
-    return response.data.data;
+    // backend returns { success: True, warehouse_id: X, count: N, stocks: [...] }
+    return response.data.stocks || [];
+  },
+
+  getSublocationsByWarehouse: async (warehouseId) => {
+    const response = await api.get(`/warehouse/sublocations/warehouse/${warehouseId}/`);
+    // backend returns { success: True, warehouse_id: X, count: N, sublocations: [...] }
+    return response.data.sublocations || [];
   },
 };
 
@@ -174,22 +183,23 @@ export const warehouseService = {
 export const productService = {
   getProducts: async (params = {}) => {
     const response = await api.get('/product/', { params });
-    return response.data.data;
+    // backend returns { success: True, count: N, products: [...] }
+    return response.data.products || [];
   },
 
   createProduct: async (data) => {
     const response = await api.post('/product/', data);
-    return response.data.data;
+    return response.data.product;
   },
 
   getProduct: async (id) => {
     const response = await api.get(`/product/${id}/`);
-    return response.data.data;
+    return response.data.product;
   },
 
   updateProduct: async (id, data) => {
     const response = await api.put(`/product/${id}/`, data);
-    return response.data.data;
+    return response.data.product;
   },
 
   deleteProduct: async (id) => {
@@ -198,12 +208,14 @@ export const productService = {
 
   getLowStockProducts: async () => {
     const response = await api.get('/product/low-stock/');
+    // backend returns { success: True, low_stock_products: [...] }
     return response.data.low_stock_products || [];
   },
 
   getCategories: async () => {
     const response = await api.get('/product/categories/');
-    return response.data.data;
+    // backend returns { success: True, categories: [...] }
+    return response.data.categories || [];
   },
 };
 
@@ -212,98 +224,101 @@ export const operationsService = {
   // Receipts
   getReceipts: async (params = {}) => {
     const response = await api.get('/operations/receipts/', { params });
-    return response.data.data;
+    return response.data.results || [];
   },
 
   createReceipt: async (data) => {
     const response = await api.post('/operations/receipts/', data);
-    return response.data.data;
+    return response.data;
   },
 
   getReceipt: async (id) => {
     const response = await api.get(`/operations/receipts/${id}/`);
-    return response.data.data;
+    return response.data;
   },
 
   updateReceipt: async (id, data) => {
     const response = await api.put(`/operations/receipts/${id}/`, data);
-    return response.data.data;
+    return response.data;
   },
 
   validateReceipt: async (id) => {
-    await api.post(`/operations/receipts/${id}/validate/`);
+    const response = await api.post(`/operations/receipts/${id}/validate/`);
+    return response.data;
   },
 
   // Deliveries
   getDeliveries: async (params = {}) => {
     const response = await api.get('/operations/deliveries/', { params });
-    return response.data.data;
+    return response.data.results || [];
   },
 
   createDelivery: async (data) => {
     const response = await api.post('/operations/deliveries/', data);
-    return response.data.data;
+    return response.data;
   },
 
   getDelivery: async (id) => {
     const response = await api.get(`/operations/deliveries/${id}/`);
-    return response.data.data;
+    return response.data;
   },
 
   updateDelivery: async (id, data) => {
     const response = await api.put(`/operations/deliveries/${id}/`, data);
-    return response.data.data;
+    return response.data;
   },
 
   validateDelivery: async (id) => {
-    await api.post(`/operations/deliveries/${id}/validate/`);
+    const response = await api.post(`/operations/deliveries/${id}/validate/`);
+    return response.data;
   },
 
   // Transfers
   getTransfers: async (params = {}) => {
     const response = await api.get('/operations/transfers/', { params });
-    return response.data.data;
+    return response.data.results || [];
   },
 
   createTransfer: async (data) => {
     const response = await api.post('/operations/transfers/', data);
-    return response.data.data;
+    return response.data;
   },
 
   getTransfer: async (id) => {
     const response = await api.get(`/operations/transfers/${id}/`);
-    return response.data.data;
+    return response.data;
   },
 
   updateTransfer: async (id, data) => {
     const response = await api.put(`/operations/transfers/${id}/`, data);
-    return response.data.data;
+    return response.data;
   },
 
   validateTransfer: async (id) => {
-    await api.post(`/operations/transfers/${id}/validate/`);
+    const response = await api.post(`/operations/transfers/${id}/validate/`);
+    return response.data;
   },
 
   // Adjustments
   getAdjustments: async (params = {}) => {
     const response = await api.get('/operations/adjustments/', { params });
-    return response.data.data;
+    return response.data.results || [];
   },
 
   createAdjustment: async (data) => {
     const response = await api.post('/operations/adjustments/', data);
-    return response.data.data;
+    return response.data;
   },
 
   getAdjustment: async (id) => {
     const response = await api.get(`/operations/adjustments/${id}/`);
-    return response.data.data;
+    return response.data;
   },
 
   // Move History
   getMoveHistory: async (params = {}) => {
     const response = await api.get('/operations/move-history/', { params });
-    return response.data.data;
+    return response.data.results || [];
   },
 };
 
@@ -332,8 +347,8 @@ export const mlService = {
     return response.data.data;
   },
 
-  getSuspiciousActivity: async (params) => {
-    const response = await api.get('/ml/suspicious-activity/', { params });
+  checkSuspiciousActivity: async (data) => {
+    const response = await api.post('/ml/suspicious-activity/', data);
     return response.data.data;
   },
 

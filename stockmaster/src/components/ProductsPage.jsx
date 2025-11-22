@@ -1,34 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Package, Search } from 'lucide-react';
+import { productService } from '../services/api';
 
 const ProductsPage = () => {
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Widget Pro X', sku: 'WDG-001', category: 'electronics', type: 'finished_good', weight: 0.5, stock: 150, min_stock: 20 },
-    { id: 2, name: 'Sensor Module A', sku: 'SNS-002', category: 'electronics', type: 'component', weight: 0.1, stock: 8, min_stock: 15 },
-    { id: 3, name: 'Cable Type C', sku: 'CBL-003', category: 'accessories', type: 'component', weight: 0.05, stock: 500, min_stock: 100 },
-    { id: 4, name: 'Battery Pack L', sku: 'BAT-004', category: 'electronics', type: 'component', weight: 0.3, stock: 12, min_stock: 25 },
-    { id: 5, name: 'Display Panel 15"', sku: 'DSP-005', category: 'electronics', type: 'component', weight: 1.2, stock: 45, min_stock: 10 },
-  ]);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [formData, setFormData] = useState({ name: '', sku: '', category: 'electronics', type: 'finished_good', weight: '', min_stock: '', max_stock: '' });
+  const [formData, setFormData] = useState({ name: '', sku: '', category: 'RAW', type: 'finished', weight: '' });
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const openAdd = () => { setEditProduct(null); setFormData({ name: '', sku: '', category: 'electronics', type: 'finished_good', weight: '', min_stock: '', max_stock: '' }); setShowModal(true); };
-  const openEdit = (p) => { setEditProduct(p); setFormData({ name: p.name, sku: p.sku, category: p.category, type: p.type, weight: p.weight, min_stock: p.min_stock, max_stock: p.max_stock || '' }); setShowModal(true); };
-  
-  const handleSave = () => {
-    if (editProduct) {
-      setProducts(products.map(p => p.id === editProduct.id ? { ...p, ...formData } : p));
-    } else {
-      setProducts([...products, { id: Date.now(), ...formData, stock: 0 }]);
+  const loadData = async () => {
+    try {
+      const [productsData, categoriesData] = await Promise.all([
+        productService.getProducts(),
+        productService.getCategories()
+      ]);
+      setProducts(Array.isArray(productsData) ? productsData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setProducts([]);
+      setCategories([]);
+    } finally {
+      setLoading(false);
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id) => setProducts(products.filter(p => p.id !== id));
+  const filtered = products.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase()) || 
+    p.sku.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const openAdd = () => { 
+    setEditProduct(null); 
+    setFormData({ name: '', sku: '', category: 'RAW', type: 'finished', weight: '' }); 
+    setShowModal(true); 
+  };
+  
+  const openEdit = (p) => { 
+    setEditProduct(p); 
+    setFormData({ 
+      name: p.name, 
+      sku: p.sku, 
+      category: p.category, 
+      type: p.type, 
+      weight: p.weight 
+    }); 
+    setShowModal(true); 
+  };
+  
+  const handleSave = async () => {
+    try {
+      if (editProduct) {
+        await productService.updateProduct(editProduct.id, formData);
+      } else {
+        await productService.createProduct(formData);
+      }
+      setShowModal(false);
+      loadData(); // Reload data
+    } catch (error) {
+      console.error('Failed to save product:', error);
+      // TODO: Show error message
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        await productService.deleteProduct(id);
+        loadData(); // Reload data
+      } catch (error) {
+        console.error('Failed to delete product:', error);
+        // TODO: Show error message
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -59,8 +111,8 @@ const ProductsPage = () => {
                 <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Product</th>
                 <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm hidden md:table-cell">SKU</th>
                 <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm hidden lg:table-cell">Category</th>
-                <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Stock</th>
-                <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Status</th>
+                <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm hidden lg:table-cell">Type</th>
+                <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm hidden lg:table-cell">Weight</th>
                 <th className="text-right py-3 px-4 text-gray-400 font-medium text-sm">Actions</th>
               </tr>
             </thead>
@@ -75,12 +127,8 @@ const ProductsPage = () => {
                   </td>
                   <td className="py-3 px-4 text-gray-400 hidden md:table-cell">{p.sku}</td>
                   <td className="py-3 px-4 hidden lg:table-cell"><span className="px-2 py-1 bg-slate-700 text-gray-300 rounded-lg text-sm capitalize">{p.category}</span></td>
-                  <td className="py-3 px-4 text-white font-medium">{p.stock}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.stock <= p.min_stock ? 'bg-red-500/20 text-red-400' : p.stock <= p.min_stock * 1.5 ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                      {p.stock <= p.min_stock ? 'Low' : p.stock <= p.min_stock * 1.5 ? 'Medium' : 'Good'}
-                    </span>
-                  </td>
+                  <td className="py-3 px-4 hidden lg:table-cell"><span className="px-2 py-1 bg-slate-700 text-gray-300 rounded-lg text-sm capitalize">{p.type}</span></td>
+                  <td className="py-3 px-4 hidden lg:table-cell text-gray-400">{p.weight} kg</td>
                   <td className="py-3 px-4 text-right">
                     <button onClick={() => openEdit(p)} className="p-2 text-gray-400 hover:text-white hover:bg-slate-700 rounded-lg transition mr-1">✏️</button>
                     <button onClick={() => handleDelete(p.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition">🗑️</button>
@@ -103,14 +151,10 @@ const ProductsPage = () => {
               <div><label className="block text-sm text-gray-400 mb-1">Product Name</label><input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
               <div><label className="block text-sm text-gray-400 mb-1">SKU</label><input type="text" value={formData.sku} onChange={(e) => setFormData({...formData, sku: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm text-gray-400 mb-1">Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"><option value="electronics">Electronics</option><option value="accessories">Accessories</option><option value="clothing">Clothing</option><option value="food">Food</option></select></div>
-                <div><label className="block text-sm text-gray-400 mb-1">Type</label><select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"><option value="finished_good">Finished Good</option><option value="component">Component</option><option value="raw_material">Raw Material</option></select></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500">{categories.map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}</select></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Type</label><select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"><option value="finished">Finished Good</option><option value="component">Component</option><option value="raw">Raw Material</option></select></div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><label className="block text-sm text-gray-400 mb-1">Weight (kg)</label><input type="number" value={formData.weight} onChange={(e) => setFormData({...formData, weight: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
-                <div><label className="block text-sm text-gray-400 mb-1">Min Stock</label><input type="number" value={formData.min_stock} onChange={(e) => setFormData({...formData, min_stock: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
-                <div><label className="block text-sm text-gray-400 mb-1">Max Stock</label><input type="number" value={formData.max_stock} onChange={(e) => setFormData({...formData, max_stock: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
-              </div>
+              <div><label className="block text-sm text-gray-400 mb-1">Weight (kg)</label><input type="number" step="0.01" value={formData.weight} onChange={(e) => setFormData({...formData, weight: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
             </div>
             <div className="p-6 border-t border-slate-700 flex gap-3 justify-end">
               <button onClick={() => setShowModal(false)} className="px-5 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition">Cancel</button>

@@ -23,7 +23,7 @@ class ReceiptListCreateView(generics.ListCreateAPIView):
     serializer_class = ReceiptSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'warehouse', 'validated']
+    filterset_fields = ['warehouse', 'validated']
     search_fields = ['reference', 'supplier']
     ordering_fields = ['created_at', 'schedule_date']
     ordering = ['-created_at']
@@ -85,7 +85,7 @@ class DeliveryListCreateView(generics.ListCreateAPIView):
     serializer_class = DeliverySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'warehouse', 'validated']
+    filterset_fields = ['warehouse', 'validated']
     search_fields = ['reference', 'contact']
     ordering_fields = ['created_at', 'schedule_date']
     ordering = ['-created_at']
@@ -145,7 +145,7 @@ class TransferListCreateView(generics.ListCreateAPIView):
     serializer_class = InternalTransferSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'from_warehouse', 'to_warehouse', 'validated']
+    filterset_fields = ['from_warehouse', 'to_warehouse', 'validated']
     search_fields = ['reference']
     ordering_fields = ['created_at', 'schedule_date']
     ordering = ['-created_at']

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { operationsService } from '../services/api';
+import { operationsService, warehouseService, productService } from '../services/api';
 
 const OperationsPage = ({ type }) => {
   const typeConfig = {
-    receipts: { title: 'Receipts', subtitle: 'Incoming stock from suppliers', color: 'emerald', icon: '📥', service: operationsService.getReceipts },
-    deliveries: { title: 'Deliveries', subtitle: 'Outgoing stock to customers', color: 'blue', icon: '📤', service: operationsService.getDeliveries },
-    transfers: { title: 'Transfers', subtitle: 'Internal stock movements', color: 'purple', icon: '🔄', service: operationsService.getTransfers },
-    adjustments: { title: 'Adjustments', subtitle: 'Stock corrections and counts', color: 'amber', icon: '📋', service: operationsService.getAdjustments },
+    receipts: { title: 'Receipts', subtitle: 'Incoming stock from suppliers', color: 'emerald', icon: '📥', service: operationsService.getReceipts, createService: operationsService.createReceipt },
+    deliveries: { title: 'Deliveries', subtitle: 'Outgoing stock to customers', color: 'blue', icon: '📤', service: operationsService.getDeliveries, createService: operationsService.createDelivery },
+    transfers: { title: 'Transfers', subtitle: 'Internal stock movements', color: 'purple', icon: '🔄', service: operationsService.getTransfers, createService: operationsService.createTransfer },
+    adjustments: { title: 'Adjustments', subtitle: 'Stock corrections and counts', color: 'amber', icon: '📋', service: operationsService.getAdjustments, createService: operationsService.createAdjustment },
   };
   const cfg = typeConfig[type];
 
@@ -15,9 +15,24 @@ const OperationsPage = ({ type }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [sublocations, setSublocations] = useState([]);
+  const [formData, setFormData] = useState({
+    warehouse: '',
+    from_warehouse: '',
+    to_warehouse: '',
+    supplier: '',
+    customer: '',
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    items: []
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadItems();
+    loadReferenceData();
   }, [type]);
 
   const loadItems = async () => {
@@ -30,6 +45,106 @@ const OperationsPage = ({ type }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadReferenceData = async () => {
+    try {
+      const [warehousesData, productsData] = await Promise.all([
+        warehouseService.getWarehouses(),
+        productService.getProducts()
+      ]);
+      setWarehouses(warehousesData);
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Failed to load reference data:', error);
+    }
+  };
+
+  const loadSublocations = async (warehouseId) => {
+    if (!warehouseId) {
+      setSublocations([]);
+      return;
+    }
+    try {
+      const data = await warehouseService.getSublocationsByWarehouse(warehouseId);
+      setSublocations(data);
+    } catch (error) {
+      console.error('Failed to load sublocations:', error);
+      setSublocations([]);
+    }
+  };
+
+  const handleCreate = async () => {
+    try {
+      setSubmitting(true);
+      
+      // Prepare data based on operation type
+      const data = {
+        date: formData.date,
+        notes: formData.notes,
+        items: formData.items
+      };
+
+      if (type === 'receipts') {
+        data.warehouse = formData.warehouse;
+        data.supplier = formData.supplier;
+      } else if (type === 'deliveries') {
+        data.warehouse = formData.warehouse;
+        data.customer = formData.customer;
+      } else if (type === 'transfers') {
+        data.from_warehouse = formData.from_warehouse;
+        data.to_warehouse = formData.to_warehouse;
+      } else if (type === 'adjustments') {
+        data.warehouse = formData.warehouse;
+      }
+
+      await cfg.createService(data);
+      
+      // Reset form and close modal
+      setFormData({
+        warehouse: '',
+        from_warehouse: '',
+        to_warehouse: '',
+        supplier: '',
+        customer: '',
+        date: new Date().toISOString().split('T')[0],
+        notes: '',
+        items: []
+      });
+      setShowModal(false);
+      
+      // Reload items
+      loadItems();
+      
+    } catch (error) {
+      console.error(`Failed to create ${type.slice(0, -1)}:`, error);
+      alert(`Failed to create ${type.slice(0, -1)}. Please try again.`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const addItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, { product: '', location: '', quantity: 1, unit_price: 0 }]
+    }));
+  };
+
+  const updateItem = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const removeItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
   };
 
   const statusColors = { 
@@ -56,7 +171,7 @@ const OperationsPage = ({ type }) => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div><h1 className="text-2xl font-bold text-white">{cfg.title}</h1><p className="text-gray-400">{cfg.subtitle}</p></div>
-        <button onClick={() => setShowModal(true)} className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition flex items-center gap-2 justify-center">
+        <button onClick={() => setShowModal(true)} className="bg-linear-to-r from-purple-500 to-blue-500 text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition flex items-center gap-2 justify-center">
           <span className="text-lg">+</span> New {cfg.title.slice(0, -1)}
         </button>
       </div>
@@ -161,20 +276,172 @@ const OperationsPage = ({ type }) => {
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm text-gray-400 mb-1">{type === 'transfers' ? 'From Warehouse' : 'Warehouse'}</label><select className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white"><option>WH-001 - Main Warehouse</option><option>WH-002 - West Coast Hub</option></select></div>
-                {type === 'transfers' && <div><label className="block text-sm text-gray-400 mb-1">To Warehouse</label><select className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white"><option>WH-002 - West Coast Hub</option><option>WH-003 - Central</option></select></div>}
-                {type !== 'transfers' && <div><label className="block text-sm text-gray-400 mb-1">{type === 'receipts' ? 'Supplier' : 'Customer'}</label><input type="text" className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white" /></div>}
+                {type === 'transfers' ? (
+                  <>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">From Warehouse</label>
+                      <select 
+                        value={formData.from_warehouse}
+                        onChange={(e) => setFormData(prev => ({ ...prev, from_warehouse: e.target.value }))}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white"
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map(wh => (
+                          <option key={wh.id} value={wh.id}>{wh.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">To Warehouse</label>
+                      <select 
+                        value={formData.to_warehouse}
+                        onChange={(e) => setFormData(prev => ({ ...prev, to_warehouse: e.target.value }))}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white"
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map(wh => (
+                          <option key={wh.id} value={wh.id}>{wh.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Warehouse</label>
+                      <select 
+                        value={formData.warehouse}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, warehouse: e.target.value }));
+                          loadSublocations(e.target.value);
+                        }}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white"
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map(wh => (
+                          <option key={wh.id} value={wh.id}>{wh.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">{type === 'receipts' ? 'Supplier' : 'Customer'}</label>
+                      <input 
+                        type="text" 
+                        value={type === 'receipts' ? formData.supplier : formData.customer}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          [type === 'receipts' ? 'supplier' : 'customer']: e.target.value 
+                        }))}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white" 
+                        placeholder={type === 'receipts' ? 'Supplier name' : 'Customer name'}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-              <div><label className="block text-sm text-gray-400 mb-1">Date</label><input type="date" className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white" /></div>
-              <div><label className="block text-sm text-gray-400 mb-1">Notes</label><textarea className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white resize-none h-20"></textarea></div>
-              <div className="border border-dashed border-slate-600 rounded-xl p-4 text-center">
-                <p className="text-gray-400 mb-2">Add Items</p>
-                <button className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition text-sm">+ Add Product</button>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Date</label>
+                <input 
+                  type="date" 
+                  value={formData.date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Notes</label>
+                <textarea 
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl py-2.5 px-4 text-white resize-none h-20"
+                  placeholder="Optional notes..."
+                ></textarea>
+              </div>
+              
+              <div className="space-y-3">
+                <label className="block text-sm text-gray-400">Items</label>
+                {formData.items.map((item, index) => (
+                  <div key={index} className="flex gap-3 items-end bg-slate-700/30 p-3 rounded-xl">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-1">Product</label>
+                      <select 
+                        value={item.product}
+                        onChange={(e) => updateItem(index, 'product', e.target.value)}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white text-sm"
+                      >
+                        <option value="">Select Product</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-1">Location</label>
+                      <select 
+                        value={item.location}
+                        onChange={(e) => updateItem(index, 'location', e.target.value)}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white text-sm"
+                      >
+                        <option value="">Select Location</option>
+                        {sublocations.map(loc => (
+                          <option key={loc.id} value={loc.id}>{loc.code}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-xs text-gray-400 mb-1">Qty</label>
+                      <input 
+                        type="number" 
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white text-sm" 
+                        min="1"
+                      />
+                    </div>
+                    {type !== 'adjustments' && (
+                      <div className="w-28">
+                        <label className="block text-xs text-gray-400 mb-1">Price</label>
+                        <input 
+                          type="number" 
+                          value={item.unit_price}
+                          onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
+                          className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white text-sm" 
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => removeItem(index)}
+                      className="text-red-400 hover:text-red-300 p-2"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+                <button 
+                  onClick={addItem}
+                  className="w-full bg-slate-700/50 border border-dashed border-slate-600 rounded-xl p-4 text-center text-gray-400 hover:text-white hover:bg-slate-700/70 transition"
+                >
+                  + Add Product
+                </button>
               </div>
             </div>
             <div className="p-6 border-t border-slate-700 flex gap-3 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-5 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition">Cancel</button>
-              <button className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:opacity-90 transition">Create</button>
+              <button 
+                onClick={() => setShowModal(false)} 
+                className="px-5 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition"
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreate}
+                disabled={submitting || !formData.items.length}
+                className="px-5 py-2.5 bg-linear-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Creating...' : 'Create'}
+              </button>
             </div>
           </div>
         </div>
