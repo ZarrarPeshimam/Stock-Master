@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import SignupView, LoginView, ProfileView, LogoutView
+from .views import SignupView, LoginView, ProfileView, LogoutView, TokenRefreshViewCustom
 
 app_name = 'user'
 
@@ -8,4 +8,5 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('profile/', ProfileView.as_view(), name='profile'),
+    path('token/refresh/', TokenRefreshViewCustom.as_view(), name='token_refresh'),
 ]

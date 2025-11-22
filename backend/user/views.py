@@ -4,6 +4,8 @@ from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from .serializers import UserSignupSerializer, UserLoginSerializer, UserSerializer
@@ -134,15 +136,24 @@ class LoginView(GenericAPIView):
             user = serializer.validated_data['user']
             login(request, user)
             
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+            
             logger.info(f"[LOGIN] SUCCESS - User logged in: {user.username} (ID: {user.id}), Email: {user.email}")
             print(f"[LOGIN] SUCCESS - User logged in: {user.username} (ID: {user.id}), Email: {user.email}")
             
-            # Return user data
+            # Return user data with tokens
             user_serializer = UserSerializer(user)
             return Response({
                 'success': True,
                 'message': 'Login successful',
-                'user': user_serializer.data
+                'user': user_serializer.data,
+                'tokens': {
+                    'access': access_token,
+                    'refresh': refresh_token
+                }
             }, status=status.HTTP_200_OK)
         
         logger.warning(f"[LOGIN] FAILED - Invalid credentials for username: {username}, IP: {ip_address}")
@@ -165,15 +176,34 @@ class ProfileView(APIView):
         """Get authenticated user's profile"""
         user = request.user
         ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
-        
         logger.info(f"[PROFILE] GET request - Profile accessed by user: {user.username} (ID: {user.id}), IP: {ip_address}")
         print(f"[PROFILE] GET request - Profile accessed by user: {user.username} (ID: {user.id}), IP: {ip_address}")
-        
         serializer = UserSerializer(user)
         return Response({
             'success': True,
             'user': serializer.data
         }, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """Update authenticated user's profile"""
+        user = request.user
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        logger.info(f"[PROFILE] PUT request - Profile update by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        print(f"[PROFILE] PUT request - Profile update by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            logger.info(f"[PROFILE] SUCCESS - Profile updated for user: {user.username} (ID: {user.id})")
+            return Response({
+                'success': True,
+                'message': 'Profile updated successfully',
+                'user': serializer.data
+            }, status=status.HTTP_200_OK)
+        logger.warning(f"[PROFILE] FAILED - Validation errors for user: {user.username}, Errors: {serializer.errors}")
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LogoutView(APIView):
@@ -218,3 +248,18 @@ class LogoutView(APIView):
             'success': True,
             'message': 'Logout successful'
         }, status=status.HTTP_200_OK)
+
+
+class TokenRefreshViewCustom(TokenRefreshView):
+    """
+    Custom token refresh view that returns success message
+    """
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            return Response({
+                'success': True,
+                'message': 'Token refreshed successfully',
+                'tokens': response.data
+            }, status=status.HTTP_200_OK)
+        return response

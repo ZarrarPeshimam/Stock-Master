@@ -4,7 +4,52 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Product
-from .serailizer import ProductListSerializer, ProductDetailSerializer
+from .serializers import ProductListSerializer, ProductDetailSerializer
+from warehouse.models import Stock, SubLocation
+from warehouse.serializers import StockListSerializer
+from rest_framework.views import APIView
+# GET /api/product/<id>/stock/ - Get stock per location
+class ProductStockPerLocationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        product = Product.objects.filter(pk=pk).first()
+        if not product:
+            return Response({'success': False, 'error': 'Product not found'}, status=404)
+        stock_qs = Stock.objects.filter(product=product)
+        data = []
+        for stock in stock_qs.select_related('sublocation__warehouse'):
+            data.append({
+                'location_id': stock.sublocation.id,
+                'location_code': stock.sublocation.code,
+                'warehouse': stock.sublocation.warehouse.name,
+                'quantity': stock.quantity
+            })
+        return Response({'success': True, 'product': product.name, 'stock_per_location': data})
+
+# GET /api/categories/ - List categories
+class CategoryListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        categories = Product.CATEGORY_CHOICES
+        return Response({'success': True, 'categories': [{'key': k, 'label': v} for k, v in categories]})
+
+# GET /api/product/low-stock/ - Get low stock items
+class LowStockProductListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        threshold = float(request.query_params.get('threshold', 10))
+        low_stock = (
+            Stock.objects.values('product')
+            .annotate(total_qty=models.Sum('quantity'))
+            .filter(total_qty__lte=threshold)
+        )
+        product_ids = [item['product'] for item in low_stock]
+        products = Product.objects.filter(id__in=product_ids)
+        serializer = ProductListSerializer(products, many=True)
+        return Response({'success': True, 'low_stock_products': serializer.data})
 
 # Get logger for this module
 logger = logging.getLogger(__name__)

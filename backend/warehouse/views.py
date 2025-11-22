@@ -409,6 +409,7 @@ class SubLocationByWarehouseView(generics.ListAPIView):
 
 class StockListView(generics.ListAPIView):
     serializer_class = StockListSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         warehouse_id = self.request.query_params.get('warehouse')
@@ -419,10 +420,61 @@ class StockListView(generics.ListAPIView):
         return Stock.objects.filter(
             sublocation__warehouse_id=warehouse_id
         ).select_related("product", "sublocation")
+
+    def get(self, request):
+        """List stock for a warehouse"""
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        user = request.user
+        warehouse_id = request.query_params.get('warehouse', 'Unknown')
         
+        logger.info(f"[STOCK] GET request - List stock for warehouse: {warehouse_id} by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        print(f"[STOCK] GET request - List stock for warehouse: {warehouse_id} by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        
+        try:
+            stocks = self.get_queryset()
+            serializer = self.get_serializer(stocks, many=True)
+            
+            logger.info(f"[STOCK] SUCCESS - Retrieved {stocks.count()} stock records for warehouse: {warehouse_id}")
+            print(f"[STOCK] SUCCESS - Retrieved {stocks.count()} stock records for warehouse: {warehouse_id}")
+            
+            return Response({
+                'success': True,
+                'warehouse_id': warehouse_id,
+                'count': stocks.count(),
+                'stocks': serializer.data
+            })
+        except ValidationError as e:
+            logger.warning(f"[STOCK] FAILED - Validation error for warehouse: {warehouse_id}, Error: {e}")
+            print(f"[STOCK] FAILED - Validation error for warehouse: {warehouse_id}, Error: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
 
 class StockDetailView(generics.RetrieveAPIView):
     queryset = Stock.objects.select_related(
         "product", "sublocation", "sublocation__warehouse"
     )
     serializer_class = StockDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """Retrieve stock details"""
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        user = request.user
+        stock_id = kwargs['pk']
+        
+        logger.info(f"[STOCK] GET request - Stock details: {stock_id} by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        print(f"[STOCK] GET request - Stock details: {stock_id} by user: {user.username} (ID: {user.id}), IP: {ip_address}")
+        
+        stock = self.get_object()
+        serializer = self.get_serializer(stock)
+        
+        logger.info(f"[STOCK] SUCCESS - Retrieved stock details for: {stock.product.name} at {stock.sublocation.code}")
+        print(f"[STOCK] SUCCESS - Retrieved stock details for: {stock.product.name} at {stock.sublocation.code}")
+        
+        return Response({
+            'success': True,
+            'stock': serializer.data
+        })
