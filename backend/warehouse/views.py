@@ -1,9 +1,10 @@
 import logging
+from django.forms import ValidationError
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Warehouse, SubLocation
-from .serializers import WarehouseSerializer, SubLocationSerializer
+from .models import Stock, Warehouse, SubLocation
+from .serializers import StockDetailSerializer, StockListSerializer, WarehouseSerializer, SubLocationSerializer
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -397,3 +398,31 @@ class SubLocationByWarehouseView(generics.ListAPIView):
             'count': sublocations.count(),
             'sublocations': serializer.data
         })
+
+
+
+
+# ---------------------------------------------------
+# STOCK VIEWS
+# ---------------------------------------------------
+
+
+class StockListView(generics.ListAPIView):
+    serializer_class = StockListSerializer
+
+    def get_queryset(self):
+        warehouse_id = self.request.query_params.get('warehouse')
+
+        if not warehouse_id:
+            raise ValidationError("warehouse parameter is required, e.g. ?warehouse=1")
+
+        return Stock.objects.filter(
+            sublocation__warehouse_id=warehouse_id
+        ).select_related("product", "sublocation")
+        
+
+class StockDetailView(generics.RetrieveAPIView):
+    queryset = Stock.objects.select_related(
+        "product", "sublocation", "sublocation__warehouse"
+    )
+    serializer_class = StockDetailSerializer

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    WarehouseListView, WarehouseDetailView,
+    StockDetailView, StockListView, WarehouseListView, WarehouseDetailView,
     SubLocationListView, SubLocationDetailView, SubLocationByWarehouseView
 )
 
@@ -15,4 +15,7 @@ urlpatterns = [
     path('sublocations/', SubLocationListView.as_view(), name='sublocation-list-create'),
     path('sublocations/<int:pk>/', SubLocationDetailView.as_view(), name='sublocation-detail-update-delete'),
     path('sublocations/warehouse/<int:warehouse_id>/', SubLocationByWarehouseView.as_view(), name='sublocation-by-warehouse'),
+     #stock apis
+    path('stock/', StockListView.as_view(), name='stock-list'),
+    path('stock/<int:pk>/', StockDetailView.as_view(), name='stock-detail'),
 ]
