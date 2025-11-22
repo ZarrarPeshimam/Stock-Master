@@ -3,18 +3,18 @@ import {
   View,
   Text,
   ScrollView,
-  Dimensions,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { PieChart, LineChart } from "react-native-chart-kit";
 
-const screenWidth = Dimensions.get("window").width;
-
 export default function History() {
+  const { width: screenWidth } = useWindowDimensions();
+  const chartWidth = screenWidth - 40; // container padding
+
   // ----- SAMPLE DATA -----
-  // Replace these arrays with real data from your contexts (products/receipts/deliveries)
   const rawHistory = [
     { type: "product", message: "Added new product: Laptop", time: "2 mins ago" },
     { type: "receipt", message: "Created Receipt #102", time: "10 mins ago" },
@@ -24,7 +24,7 @@ export default function History() {
     { type: "receipt", message: "Created Receipt #101", time: "2 days ago" },
   ];
 
-  // Aggregate counts for chart (example)
+  // Aggregate counts
   const counts = useMemo(() => {
     const c = { product: 0, receipt: 0, delivery: 0 };
     rawHistory.forEach((h) => {
@@ -35,30 +35,12 @@ export default function History() {
 
   // PieChart data
   const pieData = [
-    {
-      name: "Products",
-      count: counts.product,
-      color: "#2563EB",
-      legendFontColor: "#111827",
-      legendFontSize: 12,
-    },
-    {
-      name: "Receipts",
-      count: counts.receipt,
-      color: "#059669",
-      legendFontColor: "#111827",
-      legendFontSize: 12,
-    },
-    {
-      name: "Deliveries",
-      count: counts.delivery,
-      color: "#D97706",
-      legendFontColor: "#111827",
-      legendFontSize: 12,
-    },
-  ].filter((d) => d.count > 0); // remove zero slices
+    { name: "Products", count: counts.product, color: "#2563EB" },
+    { name: "Receipts", count: counts.receipt, color: "#059669" },
+    { name: "Deliveries", count: counts.delivery, color: "#D97706" },
+  ].filter((d) => d.count > 0);
 
-  // Weekly trend sample for LineChart (you can compute this from real timestamps)
+  // Weekly trend for LineChart
   const weeklyTrend = {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     datasets: [{ data: [5, 8, 3, 9, 7, 2, 6] }],
@@ -71,37 +53,41 @@ export default function History() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>Activity & History</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}>
+      <Text style={[styles.title, { fontSize: chartWidth * 0.07 }]}>Activity & History</Text>
 
-      {/* SUMMARY CARDS ROW */}
+      {/* SUMMARY CARDS */}
       <View style={styles.cardsRow}>
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total Events</Text>
-          <Text style={styles.cardValue}>{rawHistory.length}</Text>
+          <Text style={[styles.cardLabel, { fontSize: chartWidth * 0.035 }]}>Total Events</Text>
+          <Text style={[styles.cardValue, { fontSize: chartWidth * 0.06 }]}>{rawHistory.length}</Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: "#F8FEF6" }]}>
-          <Text style={styles.cardLabel}>Products</Text>
-          <Text style={[styles.cardValue, { color: "#2563EB" }]}>{counts.product}</Text>
+          <Text style={[styles.cardLabel, { fontSize: chartWidth * 0.035 }]}>Products</Text>
+          <Text style={[styles.cardValue, { fontSize: chartWidth * 0.06, color: "#2563EB" }]}>{counts.product}</Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: "#FFF7ED" }]}>
-          <Text style={styles.cardLabel}>Deliveries</Text>
-          <Text style={[styles.cardValue, { color: "#D97706" }]}>{counts.delivery}</Text>
+          <Text style={[styles.cardLabel, { fontSize: chartWidth * 0.035 }]}>Deliveries</Text>
+          <Text style={[styles.cardValue, { fontSize: chartWidth * 0.06, color: "#D97706" }]}>{counts.delivery}</Text>
         </View>
       </View>
 
-      {/* CHARTS */}
+      {/* PIE CHART */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Activity Distribution</Text>
-
-        {/* Pie Chart */}
+        <Text style={[styles.sectionTitle, { fontSize: chartWidth * 0.045 }]}>Activity Distribution</Text>
         {pieData.length > 0 ? (
           <PieChart
-            data={pieData.map((d) => ({ name: d.name, population: d.count, color: d.color, legendFontColor: d.legendFontColor, legendFontSize: d.legendFontSize }))}
-            width={screenWidth - 40}
-            height={160}
+            data={pieData.map((d) => ({
+              name: d.name,
+              population: d.count,
+              color: d.color,
+              legendFontColor: "#111827",
+              legendFontSize: Math.max(chartWidth * 0.03, 12),
+            }))}
+            width={chartWidth}
+            height={chartWidth * 0.5}
             chartConfig={chartConfig}
             accessor="population"
             backgroundColor="transparent"
@@ -113,13 +99,13 @@ export default function History() {
         )}
       </View>
 
+      {/* LINE CHART */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Weekly Activity Trend</Text>
-
+        <Text style={[styles.sectionTitle, { fontSize: chartWidth * 0.045 }]}>Weekly Activity Trend</Text>
         <LineChart
           data={weeklyTrend}
-          width={screenWidth - 40}
-          height={220}
+          width={chartWidth}
+          height={chartWidth * 0.6}
           yAxisLabel=""
           chartConfig={chartConfig}
           bezier
@@ -129,17 +115,14 @@ export default function History() {
 
       {/* TIMELINE */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Timeline</Text>
-
+        <Text style={[styles.sectionTitle, { fontSize: chartWidth * 0.045 }]}>Timeline</Text>
         {rawHistory.map((item, idx) => (
           <View key={idx} style={styles.timelineRow}>
             <View style={styles.iconWrap}>{iconFor(item.type)}</View>
-
             <View style={styles.timelineCard}>
-              <Text style={styles.timelineMessage}>{item.message}</Text>
+              <Text style={[styles.timelineMessage, { fontSize: chartWidth * 0.04 }]}>{item.message}</Text>
               <View style={styles.timelineMeta}>
-                <Text style={styles.timelineTime}>{item.time}</Text>
-
+                <Text style={[styles.timelineTime, { fontSize: chartWidth * 0.032 }]}>{item.time}</Text>
                 <TouchableOpacity style={styles.actionButton}>
                   <Feather name="more-vertical" size={14} color="#64748B" />
                 </TouchableOpacity>
@@ -152,12 +135,11 @@ export default function History() {
   );
 }
 
-/* Chart style config */
 const chartConfig = {
   backgroundGradientFrom: "#ffffff",
   backgroundGradientTo: "#ffffff",
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`, // primary color
+  color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
   labelColor: (opacity = 1) => `rgba(74, 85, 104, ${opacity})`,
   style: { borderRadius: 12 },
   propsForDots: { r: "4" },
@@ -165,7 +147,7 @@ const chartConfig = {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#F8FAFC" },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 18, color: "#111827" },
+  title: { fontWeight: "700", marginBottom: 18, color: "#111827" },
   cardsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
   card: {
     flex: 1,
@@ -180,13 +162,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  cardLabel: { color: "#6B7280", fontSize: 12, marginBottom: 6 },
-  cardValue: { fontSize: 20, fontWeight: "700", color: "#111827" },
-
+  cardLabel: { color: "#6B7280", marginBottom: 6 },
+  cardValue: { fontWeight: "700", color: "#111827" },
   section: { marginTop: 10, marginBottom: 14 },
-
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 12, color: "#111827" },
-
+  sectionTitle: { fontWeight: "700", marginBottom: 12, color: "#111827" },
   timelineRow: { flexDirection: "row", marginBottom: 12, alignItems: "flex-start" },
   iconWrap: {
     width: 44,
@@ -209,12 +188,8 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 1,
   },
-  timelineMessage: { fontSize: 15, fontWeight: "600", color: "#111827" },
+  timelineMessage: { fontWeight: "600", color: "#111827" },
   timelineMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
-  timelineTime: { color: "#6B7280", fontSize: 13 },
-  actionButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: "transparent",
-  },
+  timelineTime: { color: "#6B7280" },
+  actionButton: { padding: 6, borderRadius: 8, backgroundColor: "transparent" },
 });

@@ -15,13 +15,14 @@ export default function Dashboard() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: theme.background }}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ padding: 20 }}
     >
       {/* HEADER */}
       <Text
         style={{
-          ...theme.typography.h1,
+          ...(theme.typography?.h1 || { fontSize: 28, fontWeight: "700" }),
+          color: theme.colors.textDark,
           marginBottom: 20,
         }}
       >
@@ -33,13 +34,15 @@ export default function Dashboard() {
         <View
           style={{
             flex: 1,
-            backgroundColor: theme.primaryLight,
+            backgroundColor: theme.colors.primaryLight,
             padding: 16,
             borderRadius: theme.radius,
           }}
         >
-          <Text style={{ fontSize: 13, color: theme.textBody }}>Total Items</Text>
-          <Text style={{ fontSize: 22, fontWeight: "700", color: theme.primary }}>
+          <Text style={{ fontSize: 13, color: theme.colors.textBody }}>
+            Total Items
+          </Text>
+          <Text style={{ fontSize: 22, fontWeight: "700", color: theme.colors.primary }}>
             248
           </Text>
         </View>
@@ -47,13 +50,15 @@ export default function Dashboard() {
         <View
           style={{
             flex: 1,
-            backgroundColor: "#FEF3C7",
+            backgroundColor: theme.colors.warningLight,
             padding: 16,
             borderRadius: theme.radius,
           }}
         >
-          <Text style={{ fontSize: 13, color: theme.textBody }}>Low Stock</Text>
-          <Text style={{ fontSize: 22, fontWeight: "700", color: "#D97706" }}>
+          <Text style={{ fontSize: 13, color: theme.colors.textBody }}>
+            Low Stock
+          </Text>
+          <Text style={{ fontSize: 22, fontWeight: "700", color: theme.colors.warning }}>
             12
           </Text>
         </View>
@@ -66,11 +71,11 @@ export default function Dashboard() {
             key={item.route}
             onPress={() => router.push(item.route)}
             style={{
-              backgroundColor: theme.card,
+              backgroundColor: theme.colors.card,
               padding: 16,
               borderRadius: theme.radius,
               borderWidth: 1,
-              borderColor: theme.border,
+              borderColor: theme.colors.border,
               flexDirection: "row",
               alignItems: "center",
               marginBottom: 12,
@@ -80,15 +85,14 @@ export default function Dashboard() {
             <Feather
               name={item.icon}
               size={22}
-              color={theme.primary}
+              color={theme.colors.primary}
               style={{ marginRight: 14 }}
             />
-
             <Text
               style={{
                 fontSize: 18,
                 fontWeight: "600",
-                color: theme.textDark,
+                color: theme.colors.textDark,
               }}
             >
               {item.label}
