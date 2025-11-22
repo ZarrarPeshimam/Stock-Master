@@ -86,7 +86,7 @@ class SubLocation(models.Model):
 
 class Stock(models.Model):
     product = models.ForeignKey(
-        'products.Product',
+        'product.Product',
         on_delete=models.CASCADE,
         related_name="stock_items"
     )
