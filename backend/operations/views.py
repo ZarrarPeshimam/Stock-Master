@@ -3,13 +3,16 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django.http import HttpResponse
 from .models import Receipt, Delivery, InternalTransfer, StockAdjustment, MoveHistory
 from .serializers import (
     ReceiptSerializer, DeliverySerializer, InternalTransferSerializer,
     StockAdjustmentSerializer, MoveHistorySerializer
 )
 from .services import increase_stock_on_receipt, decrease_stock_on_delivery, transfer_stock_on_internal_transfer, adjust_stock_on_adjustment
-from .utils import generate_reference
+from .utils import generate_reference, generate_receipt_pdf, generate_delivery_pdf
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,6 +22,11 @@ class ReceiptListCreateView(generics.ListCreateAPIView):
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['status', 'warehouse', 'validated']
+    search_fields = ['reference', 'supplier']
+    ordering_fields = ['created_at', 'schedule_date']
+    ordering = ['-created_at']
 
     def perform_create(self, serializer):
         receipt = serializer.save()
@@ -55,15 +63,32 @@ class ReceiptValidateView(APIView):
 
 class ReceiptPrintView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request, pk):
-        # Placeholder for PDF generation
-        return Response({'message': 'PDF generated (not implemented)'})
+        try:
+            receipt = Receipt.objects.get(pk=pk)
+            pdf_buffer = generate_receipt_pdf(receipt)
+
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="receipt_{receipt.reference}.pdf"'
+            logger.info(f"PDF generated for receipt {receipt.reference} by {request.user.username}")
+            return response
+        except Receipt.DoesNotExist:
+            return Response({'error': 'Receipt not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error generating PDF for receipt {pk}: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 # Deliveries
 class DeliveryListCreateView(generics.ListCreateAPIView):
     queryset = Delivery.objects.all()
     serializer_class = DeliverySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['status', 'warehouse', 'validated']
+    search_fields = ['reference', 'contact']
+    ordering_fields = ['created_at', 'schedule_date']
+    ordering = ['-created_at']
 
     def perform_create(self, serializer):
         delivery = serializer.save()
@@ -98,15 +123,32 @@ class DeliveryValidateView(APIView):
 
 class DeliveryPrintView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request, pk):
-        # Placeholder for PDF generation
-        return Response({'message': 'PDF generated (not implemented)'})
+        try:
+            delivery = Delivery.objects.get(pk=pk)
+            pdf_buffer = generate_delivery_pdf(delivery)
+
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="delivery_{delivery.reference}.pdf"'
+            logger.info(f"PDF generated for delivery {delivery.reference} by {request.user.username}")
+            return response
+        except Delivery.DoesNotExist:
+            return Response({'error': 'Delivery not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error generating PDF for delivery {pk}: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 # Internal Transfers
 class TransferListCreateView(generics.ListCreateAPIView):
     queryset = InternalTransfer.objects.all()
     serializer_class = InternalTransferSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['status', 'from_warehouse', 'to_warehouse', 'validated']
+    search_fields = ['reference']
+    ordering_fields = ['created_at', 'schedule_date']
+    ordering = ['-created_at']
 
     def perform_create(self, serializer):
         transfer = serializer.save()
@@ -162,6 +204,11 @@ class MoveHistoryListView(generics.ListAPIView):
     queryset = MoveHistory.objects.all()
     serializer_class = MoveHistorySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['move_type', 'product', 'from_location', 'to_location']
+    search_fields = ['operation_reference']
+    ordering_fields = ['date']
+    ordering = ['-date']
 
 class MoveHistoryDetailView(generics.RetrieveAPIView):
     queryset = MoveHistory.objects.all()
