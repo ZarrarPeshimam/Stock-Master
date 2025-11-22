@@ -196,3 +196,12 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_ALL_ORIGINS = True  # Only for development
 CORS_ALLOW_CREDENTIALS = True
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+
+EMAIL_HOST_USER = 'ghostcreeper.guides@gmail.com'
+EMAIL_HOST_PASSWORD = 'your_16_char_app_password_here'  # no spaces
+DEFAULT_FROM_EMAIL = 'StockMaster Support <ghostcreeper.guides@gmail.com>'
